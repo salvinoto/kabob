@@ -181,6 +181,18 @@ const createPackage = async (name, type = 'package') => {
     process.exit(1);
   }
 
+  // Update root turbo.json to include dist/** in outputs
+  const rootTurboPath = path.join(process.cwd(), 'turbo.json');
+  if (fs.existsSync(rootTurboPath)) {
+    const turboConfig = JSON.parse(fs.readFileSync(rootTurboPath, 'utf8'));
+    if (turboConfig.tasks?.build?.outputs) {
+      if (!turboConfig.tasks.build.outputs.includes('dist/**')) {
+        turboConfig.tasks.build.outputs.push('dist/**');
+        fs.writeFileSync(rootTurboPath, JSON.stringify(turboConfig, null, 2));
+      }
+    }
+  }
+
   const details = await promptPackageDetails(name, type);
   
   const baseDir = details.type === 'app' ? 'apps' : 'packages';
@@ -331,10 +343,31 @@ Generated with ❤️ using [Kabob](https://github.com/salvinoto/kabob)
   );
 
   console.log(chalk.green(`\nSuccessfully created ${details.type} "${details.name}"`));
+  
+  // Ask if user wants to build the package
+  const { shouldBuild } = await inquirer.prompt([{
+    type: 'confirm',
+    name: 'shouldBuild',
+    message: 'Would you like to build the package now?',
+    default: true
+  }]);
+
+  if (shouldBuild) {
+    console.log(chalk.blue('\nBuilding package...'));
+    try {
+      const { execSync } = await import('child_process');
+      execSync('turbo build', { stdio: 'inherit', cwd: process.cwd() });
+      console.log(chalk.green('\nPackage built successfully!'));
+    } catch (error) {
+      console.error(chalk.red('\nError building package:'), error.message);
+    }
+  }
+
   console.log(chalk.blue('\nNext steps:'));
   console.log(`1. cd ${path.relative(process.cwd(), packagePath)}`);
   console.log('2. Install dependencies:');
   console.log(`   npm install`);
+  console.log('   Or, simply run npx kabob install from the root repo folder');
   console.log('\n3. Start development:');
   console.log(`   npm run dev`);
 };

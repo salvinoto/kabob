@@ -26,8 +26,14 @@ kabob [command] [options]
 
 - `install [packages...]`: Install packages in selected workspaces
 - `add [packages...]`: Add packages to selected workspaces
+  - `--internal`: Add internal workspace packages as dependencies
 - `remove [packages...]`: Remove packages from selected workspaces
+  - `--internal`: Remove internal workspace packages from dependencies
 - `update [packages...]`: Update packages in selected workspaces
+- `workspace init`: Initialize a new turborepo workspace
+- `package create [name]`: Create a new package or app in the workspace
+- `package delete [name]`: Delete a package from the workspace
+- `package list`: List all packages in the workspace
 
 ### Options
 
@@ -43,11 +49,32 @@ kabob install --all
 # Add a package to specific workspaces
 kabob add react --workspace frontend
 
+# Add an internal workspace package as dependency
+kabob add --internal @myorg/ui-components --workspace web-app
+
 # Remove a package from selected workspaces
 kabob remove lodash
 
+# Remove an internal workspace package from dependencies
+kabob remove --internal @myorg/shared-utils
+
 # Update packages in all workspaces
 kabob update --all
+
+# Initialize a new turborepo workspace
+kabob workspace init
+
+# Create a new package in the workspace
+kabob package create @myorg/ui-components
+
+# Create a new app in the workspace
+kabob package create my-web-app
+
+# List all packages in the workspace
+kabob package list
+
+# Delete a package from the workspace
+kabob package delete @myorg/unused-package
 ```
 
 ## Requirements

@@ -11,6 +11,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { workspaceCommand } from './src/commands/workspace.js';
 import { packageCommand } from './src/commands/package.js';
+import { addDependencies, removeDependencies } from './src/utils/package-json.js';
 
 const program = new Command();
 
@@ -105,13 +106,29 @@ async function findWorkspaces() {
 }
 
 // Execute package manager command in each workspace
-function executeInWorkspace(workspace, command, packages, packageManager) {
+async function executeInWorkspace(workspace, command, packages, packageManager, isInternal = false) {
   // Get the package name from package.json
   const packageJson = JSON.parse(readFileSync(path.join(workspace, 'package.json'), 'utf8'));
   const packageName = packageJson.name;
   
   // Fallback to directory name if no package name found
   const workspaceName = packageName || path.basename(workspace);
+
+  if (isInternal) {
+    try {
+      if (command === 'add') {
+        addDependencies(workspace, packages, packageManager);
+        console.log(chalk.green(`✓ Added internal dependencies to ${workspaceName}`));
+      } else if (command === 'remove') {
+        removeDependencies(workspace, packages);
+        console.log(chalk.green(`✓ Removed internal dependencies from ${workspaceName}`));
+      }
+      return;
+    } catch (error) {
+      console.error(chalk.red(`✗ Failed to modify package.json in ${workspaceName}`));
+      throw error;
+    }
+  }
 
   const commands = {
     npm: {
@@ -141,9 +158,9 @@ function executeInWorkspace(workspace, command, packages, packageManager) {
   try {
     console.log(chalk.blue(`\nExecuting in ${workspaceName}:`), chalk.yellow(fullCommand));
     execSync(fullCommand, {
-      cwd: process.cwd(), // Execute from root of monorepo
+      cwd: process.cwd(),
       stdio: 'inherit',
-      killSignal: 'SIGTERM' // Ensure child processes can be terminated
+      killSignal: 'SIGTERM'
     });
     console.log(chalk.green(`✓ Success in ${workspaceName}`));
   } catch (error) {
@@ -189,6 +206,58 @@ async function selectWorkspaces(workspaces) {
   }
 }
 
+// Find internal packages in the workspace
+async function findInternalPackages() {
+  const workspaces = await findWorkspaces();
+  const internalPackages = [];
+
+  for (const workspace of workspaces) {
+    try {
+      const pkgJsonPath = path.join(workspace, 'package.json');
+      const pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
+      
+      // Only include packages that are not private
+      if (pkgJson.name && !pkgJson.private) {
+        internalPackages.push({
+          name: pkgJson.name,
+          version: pkgJson.version || '0.0.0',
+          path: workspace,
+          description: pkgJson.description || ''
+        });
+      }
+    } catch (error) {
+      console.warn(chalk.yellow(`Warning: Could not read package.json in ${workspace}`));
+    }
+  }
+
+  return internalPackages;
+}
+
+// Select internal packages interactively
+async function selectInternalPackages() {
+  const internalPackages = await findInternalPackages();
+  
+  if (internalPackages.length === 0) {
+    throw new Error('No internal packages found in the workspace');
+  }
+
+  const { selectedPackages } = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'selectedPackages',
+      message: 'Select internal packages to add:',
+      choices: internalPackages.map(pkg => ({
+        name: `${pkg.name}@${pkg.version} - ${pkg.description}`,
+        value: `${pkg.name}@workspace:*`,
+        checked: false
+      })),
+      pageSize: 20
+    }
+  ]);
+
+  return selectedPackages;
+}
+
 program
   .name('kabob')
   .description('Smart monorepo package manager')
@@ -201,8 +270,9 @@ program.addCommand(packageCommand);
 program
   .command('add')
   .description('Add packages to workspaces')
-  .argument('<packages...>', 'packages to add')
-  .action(async (packages) => {
+  .argument('[packages...]', 'packages to add')
+  .option('--internal', 'Add internal workspace packages')
+  .action(async (packages, options) => {
     try {
       const packageManager = await detectPackageManager();
       const allWorkspaces = await findWorkspaces();
@@ -210,11 +280,35 @@ program
       console.log(chalk.blue(`Using package manager: ${packageManager}`));
       console.log(chalk.blue(`Found ${allWorkspaces.length} workspace(s)`));
 
+      // If --internal flag is used or no packages specified, show internal package selection
+      let packagesToAdd = packages || [];
+      let internalMode = false;
+      
+      if (options.internal || !packages?.length) {
+        const internalPkgs = await selectInternalPackages();
+        packagesToAdd = internalPkgs;
+        internalMode = true;
+      }
+
+      if (packagesToAdd.length === 0) {
+        console.log(chalk.yellow('No packages selected for installation'));
+        return;
+      }
+
       // Let user select workspaces
       const selectedWorkspaces = await selectWorkspaces(allWorkspaces);
 
       for (const workspace of selectedWorkspaces) {
-        await executeInWorkspace(workspace, 'add', packages, packageManager);
+        await executeInWorkspace(workspace, 'add', packagesToAdd, packageManager, internalMode);
+      }
+
+      // Run install after modifying package.json files
+      if (internalMode) {
+        console.log(chalk.blue('\nRunning install to update dependencies...'));
+        execSync(`${packageManager} install`, {
+          stdio: 'inherit',
+          cwd: process.cwd()
+        });
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
@@ -225,17 +319,42 @@ program
 program
   .command('remove')
   .description('Remove packages from workspaces')
-  .argument('<packages...>', 'packages to remove')
-  .action(async (packages) => {
+  .argument('[packages...]', 'packages to remove')
+  .option('--internal', 'Remove internal workspace packages')
+  .action(async (packages, options) => {
     try {
       const packageManager = await detectPackageManager();
       const allWorkspaces = await findWorkspaces();
+
+      // If --internal flag is used or no packages specified, show internal package selection
+      let packagesToRemove = packages || [];
+      let internalMode = false;
+      
+      if (options.internal || !packages?.length) {
+        const internalPkgs = await selectInternalPackages();
+        packagesToRemove = internalPkgs;
+        internalMode = true;
+      }
+
+      if (packagesToRemove.length === 0) {
+        console.log(chalk.yellow('No packages selected for removal'));
+        return;
+      }
 
       // Let user select workspaces
       const selectedWorkspaces = await selectWorkspaces(allWorkspaces);
 
       for (const workspace of selectedWorkspaces) {
-        await executeInWorkspace(workspace, 'remove', packages, packageManager);
+        await executeInWorkspace(workspace, 'remove', packagesToRemove, packageManager, internalMode);
+      }
+
+      // Run install after modifying package.json files
+      if (internalMode) {
+        console.log(chalk.blue('\nRunning install to update dependencies...'));
+        execSync(`${packageManager} install`, {
+          stdio: 'inherit',
+          cwd: process.cwd()
+        });
       }
     } catch (error) {
       console.error(chalk.red('Error:'), error.message);
