@@ -4,7 +4,8 @@
   "description": "A smart monorepo package manager installer",
   "main": "index.js",
   "bin": {
-    "kabob": "./index.js"
+    "kabob": "./index.js",
+    "kabob-workspace": "./src/commands/workspace.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

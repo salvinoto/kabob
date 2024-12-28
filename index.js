@@ -9,6 +9,7 @@ import { parse as parseYaml } from 'yaml';
 import { execSync } from 'child_process';
 import path from 'path';
 import inquirer from 'inquirer';
+import { workspaceCommand } from './src/commands/workspace.js';
 
 const program = new Command();
 
@@ -54,13 +55,13 @@ async function findWorkspaces() {
 
   const rootPkg = JSON.parse(readFileSync(rootPkgPath, 'utf8'));
   const rootDir = path.dirname(rootPkgPath);
-  
+
   let workspacePatterns = [];
-  
+
   // Handle different workspace configurations
   if (rootPkg.workspaces) {
-    workspacePatterns = Array.isArray(rootPkg.workspaces) 
-      ? rootPkg.workspaces 
+    workspacePatterns = Array.isArray(rootPkg.workspaces)
+      ? rootPkg.workspaces
       : rootPkg.workspaces.packages || [];
   }
 
@@ -83,12 +84,12 @@ async function findWorkspaces() {
   const allWorkspacePaths = [];
   for (const pattern of workspacePatterns) {
     // Ensure pattern ends with package.json
-    const packageJsonPattern = pattern.endsWith('package.json') 
-      ? pattern 
+    const packageJsonPattern = pattern.endsWith('package.json')
+      ? pattern
       : path.join(pattern, 'package.json');
 
     // Find all package.json files matching the pattern
-    const matches = await glob(packageJsonPattern, { 
+    const matches = await glob(packageJsonPattern, {
       cwd: rootDir,
       absolute: true,
       ignore: ['**/node_modules/**']
@@ -106,7 +107,7 @@ async function findWorkspaces() {
 function executeInWorkspace(workspace, command, packages, packageManager) {
   // Get the workspace name from the path
   const workspaceName = path.basename(workspace);
-  
+
   const commands = {
     npm: {
       add: packages => `npm install ${packages.join(' ')} --workspace=${workspaceName}`,
@@ -131,10 +132,10 @@ function executeInWorkspace(workspace, command, packages, packageManager) {
   }
 
   const fullCommand = packages ? commandGenerator(packages) : commandGenerator();
-  
+
   try {
     console.log(chalk.blue(`\nExecuting in ${workspaceName}:`), chalk.yellow(fullCommand));
-    execSync(fullCommand, { 
+    execSync(fullCommand, {
       cwd: process.cwd(), // Execute from root of monorepo
       stdio: 'inherit',
       killSignal: 'SIGTERM' // Ensure child processes can be terminated
@@ -188,6 +189,9 @@ program
   .description('Smart monorepo package manager')
   .version('1.0.0-alpha.2');
 
+// Add workspace command
+program.addCommand(workspaceCommand);
+
 program
   .command('add')
   .description('Add packages to workspaces')
@@ -196,13 +200,13 @@ program
     try {
       const packageManager = await detectPackageManager();
       const allWorkspaces = await findWorkspaces();
-      
+
       console.log(chalk.blue(`Using package manager: ${packageManager}`));
       console.log(chalk.blue(`Found ${allWorkspaces.length} workspace(s)`));
-      
+
       // Let user select workspaces
       const selectedWorkspaces = await selectWorkspaces(allWorkspaces);
-      
+
       for (const workspace of selectedWorkspaces) {
         await executeInWorkspace(workspace, 'add', packages, packageManager);
       }
@@ -220,10 +224,10 @@ program
     try {
       const packageManager = await detectPackageManager();
       const allWorkspaces = await findWorkspaces();
-      
+
       // Let user select workspaces
       const selectedWorkspaces = await selectWorkspaces(allWorkspaces);
-      
+
       for (const workspace of selectedWorkspaces) {
         await executeInWorkspace(workspace, 'remove', packages, packageManager);
       }
@@ -240,10 +244,10 @@ program
     try {
       const packageManager = await detectPackageManager();
       const allWorkspaces = await findWorkspaces();
-      
+
       // Let user select workspaces
       const selectedWorkspaces = await selectWorkspaces(allWorkspaces);
-      
+
       for (const workspace of selectedWorkspaces) {
         await executeInWorkspace(workspace, 'install', null, packageManager);
       }
@@ -253,4 +257,5 @@ program
     }
   });
 
+// Parse command line arguments
 program.parse();
