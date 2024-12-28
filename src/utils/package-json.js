@@ -14,11 +14,8 @@ export function addDependencies(workspacePath, dependencies, packageManager) {
 
   // Add each dependency with appropriate version syntax
   for (const dep of dependencies) {
-    // Handle the case where package name might contain 'workspace'
-    const name = dep.replace(/@workspace:$/, '');  // Remove trailing @workspace: if present
-    
     // pnpm requires workspace:* protocol, npm and yarn can use *
-    pkgJson.dependencies[name] = packageManager === 'pnpm' ? 'workspace:*' : '*';
+    pkgJson.dependencies[dep] = packageManager === 'pnpm' ? 'workspace:*' : '*';
   }
 
   // Write back to package.json
@@ -32,10 +29,7 @@ export function removeDependencies(workspacePath, dependencies) {
 
   if (pkgJson.dependencies) {
     for (const dep of dependencies) {
-      // Handle the case where package name might contain 'workspace'
-      const name = dep.replace(/@workspace:$/, '');  // Remove trailing @workspace: if present
-      
-      delete pkgJson.dependencies[name];
+      delete pkgJson.dependencies[dep];
     }
   }
 

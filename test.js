@@ -12,7 +12,7 @@ fs.writeFileSync(path.join(testDir, 'package.json'), JSON.stringify({
 
 // Test with pnpm
 console.log('Testing pnpm:');
-addDependencies(testDir, ['@workspace/typescript-config@workspace:'], 'pnpm');
+addDependencies(testDir, ['@workspace/typescript-config'], 'pnpm');
 console.log(JSON.parse(fs.readFileSync(path.join(testDir, 'package.json'), 'utf8')));
 
 // Clean up
