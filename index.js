@@ -105,24 +105,28 @@ async function findWorkspaces() {
 
 // Execute package manager command in each workspace
 function executeInWorkspace(workspace, command, packages, packageManager) {
-  // Get the workspace name from the path
-  const workspaceName = path.basename(workspace);
+  // Get the package name from package.json
+  const packageJson = JSON.parse(readFileSync(path.join(workspace, 'package.json'), 'utf8'));
+  const packageName = packageJson.name;
+  
+  // Fallback to directory name if no package name found
+  const workspaceName = packageName || path.basename(workspace);
 
   const commands = {
     npm: {
-      add: packages => `npm install ${packages.join(' ')} --workspace=${workspaceName}`,
-      remove: packages => `npm uninstall ${packages.join(' ')} --workspace=${workspaceName}`,
-      install: () => `npm install --workspace=${workspaceName}`
+      add: packages => `npm install ${packages.join(' ')} --workspace=${packageName}`,
+      remove: packages => `npm uninstall ${packages.join(' ')} --workspace=${packageName}`,
+      install: () => `npm install --workspace=${packageName}`
     },
     yarn: {
-      add: packages => `yarn workspace ${workspaceName} add ${packages.join(' ')}`,
-      remove: packages => `yarn workspace ${workspaceName} remove ${packages.join(' ')}`,
-      install: () => `yarn workspace ${workspaceName} install`
+      add: packages => `yarn workspace ${packageName} add ${packages.join(' ')}`,
+      remove: packages => `yarn workspace ${packageName} remove ${packages.join(' ')}`,
+      install: () => `yarn workspace ${packageName} install`
     },
     pnpm: {
-      add: packages => `pnpm add ${packages.join(' ')} --filter ${workspaceName}`,
-      remove: packages => `pnpm remove ${packages.join(' ')} --filter ${workspaceName}`,
-      install: () => `pnpm install --filter ${workspaceName}`
+      add: packages => `pnpm add ${packages.join(' ')} --filter ${packageName}`,
+      remove: packages => `pnpm remove ${packages.join(' ')} --filter ${packageName}`,
+      install: () => `pnpm install --filter ${packageName}`
     }
   };
 
