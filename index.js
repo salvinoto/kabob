@@ -10,6 +10,7 @@ import { execSync } from 'child_process';
 import path from 'path';
 import inquirer from 'inquirer';
 import { workspaceCommand } from './src/commands/workspace.js';
+import { packageCommand } from './src/commands/package.js';
 
 const program = new Command();
 
@@ -193,8 +194,9 @@ program
   .description('Smart monorepo package manager')
   .version('1.0.0-alpha.2');
 
-// Add workspace command
+// Add commands
 program.addCommand(workspaceCommand);
+program.addCommand(packageCommand);
 
 program
   .command('add')
