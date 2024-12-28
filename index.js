@@ -248,7 +248,7 @@ async function selectInternalPackages() {
       message: 'Select internal packages to add:',
       choices: internalPackages.map(pkg => ({
         name: `${pkg.name}@${pkg.version} - ${pkg.description}`,
-        value: `${pkg.name}@workspace:*`,
+        value: pkg.name,
         checked: false
       })),
       pageSize: 20
