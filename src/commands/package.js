@@ -172,6 +172,39 @@ const promptPackageDetails = async (name = '', type = 'package') => {
   return answers;
 };
 
+const detectPackageManager = async () => {
+  const packageManager = await findUp(['pnpm-lock.yaml', 'yarn.lock', 'package-lock.json'], { cwd: process.cwd() });
+  if (packageManager === 'pnpm-lock.yaml') return 'pnpm';
+  if (packageManager === 'yarn.lock') return 'yarn';
+  return 'npm';
+};
+
+const findInternalPackages = async () => {
+  const rootPackageJson = getRootPackageJson();
+  const workspaces = rootPackageJson.workspaces || ['packages/*', 'apps/*'];
+  const internalPackages = [];
+
+  for (const workspace of workspaces) {
+    const baseDir = workspace.split('/')[0];
+    const basePath = path.join(process.cwd(), baseDir);
+    
+    if (fs.existsSync(basePath)) {
+      const packages = fs.readdirSync(basePath)
+        .filter(file => fs.statSync(path.join(basePath, file)).isDirectory());
+      
+      packages.forEach(pkg => {
+        const packageJsonPath = path.join(basePath, pkg, 'package.json');
+        if (fs.existsSync(packageJsonPath)) {
+          const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+          internalPackages.push(packageJson);
+        }
+      });
+    }
+  }
+
+  return internalPackages;
+};
+
 const createPackage = async (name, type = 'package') => {
   // Verify we're in a workspace
   try {
@@ -235,24 +268,43 @@ const createPackage = async (name, type = 'package') => {
       build: 'tsc',
       dev: 'tsc --watch',
       lint: 'eslint .'
-    },
-    // Standard dependencies for all packages
-    devDependencies: {
-      "@repo/typescript-config": "*",
-      "@repo/eslint-config": "*",
-      "typescript": "latest",
-      "eslint": "latest"
     }
   };
+
+  // Add standard dev dependencies
+  const packageManager = await detectPackageManager();
+  const internalPackages = await findInternalPackages();
+  
+  // Initialize devDependencies
+  packageJson.devDependencies = {
+    "typescript": "latest",
+    "eslint": "latest"
+  };
+
+  // Check if typescript-config exists in internal packages
+  const typescriptConfig = internalPackages.find(pkg => 
+    pkg.name.endsWith('/typescript-config') || pkg.name === 'typescript-config'
+  );
+  if (typescriptConfig) {
+    packageJson.devDependencies[typescriptConfig.name] = packageManager === 'pnpm' ? 'workspace:*' : '*';
+  }
+
+  // Check if eslint-config exists in internal packages
+  const eslintConfig = internalPackages.find(pkg => 
+    pkg.name.endsWith('/eslint-config') || pkg.name === 'eslint-config'
+  );
+  if (eslintConfig) {
+    packageJson.devDependencies[eslintConfig.name] = packageManager === 'pnpm' ? 'workspace:*' : '*';
+  }
 
   fs.writeFileSync(
     path.join(packagePath, 'package.json'),
     JSON.stringify(packageJson, null, 2)
   );
 
-  // Create tsconfig.json
+  // Create tsconfig.json with the correct config package name
   const tsConfig = {
-    extends: "@repo/typescript-config/base.json",
+    extends: typescriptConfig ? `${typescriptConfig.name}/base.json` : "./tsconfig.base.json",
     compilerOptions: {
       outDir: "dist",
       rootDir: "src"
@@ -265,6 +317,28 @@ const createPackage = async (name, type = 'package') => {
     path.join(packagePath, 'tsconfig.json'),
     JSON.stringify(tsConfig, null, 2)
   );
+
+  // If no typescript-config package found, create a base config
+  if (!typescriptConfig) {
+    const baseConfig = {
+      "$schema": "https://json.schemastore.org/tsconfig",
+      "display": "Base",
+      "compilerOptions": {
+        "target": "es2020",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "strict": true,
+        "declaration": true,
+        "sourceMap": true,
+        "skipLibCheck": true
+      }
+    };
+    fs.writeFileSync(
+      path.join(packagePath, 'tsconfig.base.json'),
+      JSON.stringify(baseConfig, null, 2)
+    );
+  }
 
   // Create source files
   const indexContent = `// Example code - replace with your package implementation
@@ -438,6 +512,9 @@ const listPackages = async () => {
     }
   });
 };
+
+// Export functions
+export { createPackage, deletePackage, listPackages };
 
 packageCommand
   .command('create')

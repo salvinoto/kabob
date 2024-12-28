@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/testing",
+  "version": "0.0.1",
+  "private": false,
+  "type": "module",
+  "description": "jfjdsf",
+  "author": "fasf",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "typescript": "latest",
+    "eslint": "latest",
+    "@repo/typescript-config": "*",
+    "@repo/eslint-config": "*"
+  }
+}
