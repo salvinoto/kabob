@@ -14,6 +14,7 @@ A smart monorepo package manager installer that simplifies managing dependencies
 
 ```bash
 npm install -g kabob
+or npx kabob [args...]
 ```
 
 ## Usage
