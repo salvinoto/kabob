@@ -15,6 +15,7 @@ export function addDependencies(workspacePath, dependencies, packageManager) {
   // Add each dependency with appropriate version syntax
   for (const dep of dependencies) {
     const [name] = dep.split('@workspace:');
+    // pnpm requires workspace:* protocol, npm and yarn can use *
     pkgJson.dependencies[name] = packageManager === 'pnpm' ? 'workspace:*' : '*';
   }
 
