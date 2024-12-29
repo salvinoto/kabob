@@ -316,18 +316,184 @@ program.addCommand(workspaceCommand);
 program.addCommand(packageCommand);
 
 program
-  .command('add <packages...>')
+  .command('add [packages...]')
   .description('Add dependencies to workspaces')
   .option('-w, --workspace <workspace>', 'Target specific workspace')
   .option('--internal', 'Add internal workspace packages')
   .option('-D, --dev', 'Add as development dependency')
-  .action((packages, options) => addToWorkspaces(packages, options));
+  .action(async (packages, options) => {
+    try {
+      if (options.internal && (!packages || packages.length === 0)) {
+        // If --internal is used without packages, show a selection prompt
+        const internalPackages = await findInternalPackages();
+        if (!internalPackages.length) {
+          throw new Error('No internal packages found');
+        }
+
+        const choices = internalPackages.map(pkg => ({
+          name: pkg.name,
+          value: pkg.name
+        }));
+
+        const { selectedPackages } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'selectedPackages',
+            message: 'Select internal packages to add:',
+            choices,
+            validate: (input: string[]) => input.length > 0 || 'You must select at least one package'
+          }
+        ]);
+
+        packages = selectedPackages;
+      } else if (!packages || packages.length === 0) {
+        throw new Error('Please specify packages to add');
+      }
+
+      await addToWorkspaces(packages, options);
+    } catch (error) {
+      console.error(chalk.red('\nError:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
 
 program
-  .command('remove <packages...>')
+  .command('remove [packages...]')
   .description('Remove dependencies from workspaces')
   .option('-w, --workspace <workspace>', 'Target specific workspace')
   .option('--internal', 'Remove internal workspace packages')
-  .action((packages, options) => removeFromWorkspaces(packages, options));
+  .action(async (packages, options) => {
+    try {
+      if (options.internal && (!packages || packages.length === 0)) {
+        // If --internal is used without packages, show a selection prompt
+        const internalPackages = await findInternalPackages();
+        if (!internalPackages.length) {
+          throw new Error('No internal packages found');
+        }
+
+        const choices = internalPackages.map(pkg => ({
+          name: pkg.name,
+          value: pkg.name
+        }));
+
+        const { selectedPackages } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'selectedPackages',
+            message: 'Select internal packages to remove:',
+            choices,
+            validate: (input: string[]) => input.length > 0 || 'You must select at least one package'
+          }
+        ]);
+
+        packages = selectedPackages;
+      } else if (!packages || packages.length === 0) {
+        throw new Error('Please specify packages to remove');
+      }
+
+      await removeFromWorkspaces(packages, options);
+    } catch (error) {
+      console.error(chalk.red('\nError:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('install')
+  .description('Install dependencies in workspaces')
+  .option('-w, --workspace <workspace>', 'Target specific workspace')
+  .option('--clean', 'Clean install (like npm ci)')
+  .option('--frozen', 'Use frozen lockfile')
+  .action(async (options) => {
+    try {
+      const pm = await detect();
+      if (!pm) {
+        throw new Error('Could not detect package manager');
+      }
+
+      let selectedWorkspaces: string[] = [];
+
+      if (options.workspace) {
+        // Single workspace mode
+        const workspace = path.resolve(options.workspace);
+        if (!fs.existsSync(path.join(workspace, 'package.json'))) {
+          throw new Error(`Invalid workspace path: ${options.workspace}`);
+        }
+        selectedWorkspaces = [workspace];
+      } else {
+        // Interactive workspace selection
+        const workspaces = await findWorkspaces();
+        const choices = workspaces.map(workspace => {
+          const packageJson = JSON.parse(readFileSync(path.join(workspace, 'package.json'), 'utf8'));
+          return {
+            name: `${packageJson.name} (${path.relative(process.cwd(), workspace)})`,
+            value: workspace
+          };
+        });
+
+        const { workspaces: selected } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'workspaces',
+            message: 'Select workspaces to install dependencies in:',
+            choices,
+            validate
+          }
+        ]);
+
+        selectedWorkspaces = selected;
+      }
+
+      // Install dependencies in each selected workspace
+      for (const workspace of selectedWorkspaces) {
+        const command = resolveCommand(pm.name, 'install', []);
+        if (!command) {
+          throw new Error(`Could not resolve install command for ${pm.name}`);
+        }
+
+        // Add additional flags based on options
+        const args = [...command.args];
+        if (options.clean) {
+          if (pm.name === 'npm') {
+            args.push('--clean-install');
+          } else if (pm.name === 'pnpm') {
+            args.push('--force');
+          } else if (pm.name === 'yarn') {
+            args.push('--clean');
+          }
+        }
+
+        if (options.frozen) {
+          if (pm.name === 'npm') {
+            args.push('--frozen-lockfile');
+          } else if (pm.name === 'pnpm') {
+            args.push('--frozen-lockfile');
+          } else if (pm.name === 'yarn') {
+            args.push('--frozen-lockfile');
+          }
+        }
+
+        console.log(chalk.blue(`\nInstalling dependencies in ${path.relative(process.cwd(), workspace)}...`));
+        const result = spawnSync(command.command, args, {
+          cwd: workspace,
+          stdio: 'inherit',
+          shell: true
+        });
+
+        if (result.error) {
+          throw result.error;
+        }
+
+        if (result.status !== 0) {
+          throw new Error(`Failed to install dependencies in ${workspace}`);
+        }
+      }
+
+      console.log(chalk.green('\nDependencies installed successfully!'));
+    } catch (error) {
+      console.error(chalk.red('\nError:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
 
 program.parse();
