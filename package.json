@@ -1,25 +1,38 @@
 {
   "name": "kabob",
-  "version": "1.0.1-alpha.6",
+  "version": "1.0.2-alpha.1",
   "description": "A smart monorepo package manager installer",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
-    "kabob": "./index.js",
-    "kabob-workspace": "./src/commands/workspace.js"
+    "kabob": "./dist/index.js",
+    "kabob-workspace": "./dist/commands/workspace.js"
   },
   "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["monorepo", "package-manager", "cli"],
+  "keywords": [
+    "monorepo",
+    "package-manager",
+    "cli"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "commander": "^11.1.0",
-    "glob": "^10.3.10",
     "chalk": "^5.3.0",
+    "commander": "^11.1.0",
     "find-up": "^7.0.0",
-    "yaml": "^2.3.4",
-    "inquirer": "^9.2.12"
+    "glob": "^10.3.10",
+    "inquirer": "^9.2.12",
+    "package-manager-detector": "^0.2.8",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.10.6",
+    "typescript": "^5.3.3"
   },
   "type": "module"
 }
