@@ -1,16 +1,26 @@
 # Kabob 🍖
 
-A smart monorepo package manager installer that simplifies managing dependencies across multiple workspaces.
+A smart monorepo package manager installer that makes managing dependencies across workspaces a breeze. Kabob automatically detects your package manager (npm, yarn, or pnpm) and provides an interactive interface for managing dependencies across your monorepo workspaces.
 
 ## Features
 
-- 📦 Automatic package manager detection (npm, yarn, pnpm)
-- 🔍 Smart workspace discovery
+- 🔍 Automatic package manager detection (npm, yarn, pnpm, bun, deno)
 - 🎯 Interactive workspace selection
-- 🚀 Parallel dependency installation
-- 💪 Robust error handling and graceful exit management
+- 📦 Smart internal package management
+- 🛠️ Support for development dependencies
+- 🔒 Frozen lockfile support
+- 🧹 Clean install support
+- 💻 Cross-platform compatibility
 
 ## Installation
+
+You can run Kabob directly using npx:
+
+```bash
+npx kabob
+```
+
+Or install it globally:
 
 ```bash
 npm install -g kabob
@@ -18,83 +28,107 @@ npm install -g kabob
 
 ## Usage
 
+### Adding Dependencies
+
+Add external packages:
 ```bash
-kabob [command] [options]
+npx kabob add package1 package2 [options]
 ```
 
-### Commands
+Add internal workspace packages:
+```bash
+npx kabob add --internal            # Interactive selection
+npx kabob add --internal pkg1 pkg2  # Specific packages
+```
 
-- `install [packages...]`: Install packages in selected workspaces
-- `add [packages...]`: Add packages to selected workspaces
-  - `--internal`: Add internal workspace packages as dependencies
-- `remove [packages...]`: Remove packages from selected workspaces
-  - `--internal`: Remove internal workspace packages from dependencies
-- `update [packages...]`: Update packages in selected workspaces
-- `workspace init`: Initialize a new turborepo workspace
-- `package create [name]`: Create a new package or app in the workspace
-- `package delete [name]`: Delete a package from the workspace
-- `package list`: List all packages in the workspace
+Options:
+- `-w, --workspace <workspace>`: Target specific workspace
+- `--internal`: Add internal workspace packages
+- `-D, --dev`: Add as development dependency
 
-### Options
+### Removing Dependencies
 
-- `-h, --help`: Display help information
-- `-v, --version`: Display version information
+Remove external packages:
+```bash
+npx kabob remove package1 package2 [options]
+```
+
+Remove internal workspace packages:
+```bash
+npx kabob remove --internal            # Interactive selection
+npx kabob remove --internal pkg1 pkg2  # Specific packages
+```
+
+Options:
+- `-w, --workspace <workspace>`: Target specific workspace
+- `--internal`: Remove internal workspace packages
+
+### Installing Dependencies
+
+Install dependencies in workspaces:
+```bash
+npx kabob install [options]
+```
+
+Options:
+- `-w, --workspace <workspace>`: Target specific workspace
+- `--clean`: Clean install (like npm ci)
+- `--frozen`: Use frozen lockfile
+
+### Managing Workspaces
+
+View workspace information:
+```bash
+npx kabob workspace info
+```
+
+### Managing Packages
+
+View package information:
+```bash
+npx kabob package info
+```
+
+## Package Manager Support
+
+Kabob automatically detects and supports:
+- npm
+- yarn
+- pnpm
+
+Each command is automatically adapted to use the correct syntax for your package manager.
 
 ## Examples
 
+1. Add a package to all workspaces:
 ```bash
-# Install dependencies in all workspaces
-kabob install --all
-
-# Add a package to specific workspaces
-kabob add react --workspace frontend
-
-# Add an internal workspace package as dependency
-kabob add --internal @myorg/ui-components --workspace web-app
-
-# Remove a package from selected workspaces
-kabob remove lodash
-
-# Remove an internal workspace package from dependencies
-kabob remove --internal @myorg/shared-utils
-
-# Update packages in all workspaces
-kabob update --all
-
-# Initialize a new turborepo workspace
-kabob workspace init
-
-# Create a new package in the workspace
-kabob package create @myorg/ui-components
-
-# Create a new app in the workspace
-kabob package create my-web-app
-
-# List all packages in the workspace
-kabob package list
-
-# Delete a package from the workspace
-kabob package delete @myorg/unused-package
+npx kabob add lodash
 ```
 
-## Requirements
+2. Add a development dependency to a specific workspace:
+```bash
+npx kabob add -D jest --workspace ./packages/my-app
+```
 
-- Node.js >= 14
-- npm, yarn, or pnpm
+3. Add internal packages interactively:
+```bash
+npx kabob add --internal
+```
 
-## Dependencies
+4. Clean install in all workspaces:
+```bash
+npx kabob install --clean
+```
 
-- commander: ^11.1.0
-- glob: ^10.3.10
-- chalk: ^5.3.0
-- find-up: ^7.0.0
-- yaml: ^2.3.4
-- inquirer: ^9.2.12
-
-## License
-
-ISC
+5. Remove a package from specific workspaces:
+```bash
+npx kabob remove lodash --workspace ./packages/my-app
+```
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+ISC
