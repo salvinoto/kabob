@@ -329,7 +329,7 @@ async function removeFromWorkspaces(
 program
   .name('kabob')
   .description('A CLI tool for managing Turborepo workspaces')
-  .version('1.0.0');
+  .version('1.0.2-alpha.4');
 
 program.addCommand(workspaceCommand);
 program.addCommand(packageCommand);
@@ -509,6 +509,128 @@ program
       }
 
       console.log(chalk.green('\nDependencies installed successfully!'));
+    } catch (error) {
+      console.error(chalk.red('\nError:'), error instanceof Error ? error.message : String(error));
+      process.exit(1);
+    }
+  });
+
+program
+  .command('update [packages...]')
+  .description('Update dependencies in workspaces. If no packages are specified, you will be prompted to select from existing dependencies. Use --latest to upgrade to the latest major versions.')
+  .option('-w, --workspace <workspace>', 'Target specific workspace')
+  .option('--latest', 'Update to latest major versions (includes major version bumps)')
+  .action(async (packages, options) => {
+    try {
+      const pm = await detect();
+      if (!pm) {
+        throw new Error('Could not detect package manager');
+      }
+
+      let selectedWorkspaces: string[] = [];
+
+      if (options.workspace) {
+        // Single workspace mode
+        const workspace = path.resolve(options.workspace);
+        if (!fs.existsSync(path.join(workspace, 'package.json'))) {
+          throw new Error(`Invalid workspace path: ${options.workspace}`);
+        }
+        selectedWorkspaces = [workspace];
+      } else {
+        // Interactive workspace selection
+        const workspaces = await findWorkspaces();
+        const choices = workspaces.map(workspace => {
+          const packageJson = JSON.parse(readFileSync(path.join(workspace, 'package.json'), 'utf8'));
+          return {
+            name: `${packageJson.name} (${path.relative(process.cwd(), workspace)})`,
+            value: workspace
+          };
+        });
+
+        const { workspaces: selected } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'workspaces',
+            message: 'Select workspaces to update dependencies in:',
+            choices,
+            validate
+          }
+        ]);
+
+        selectedWorkspaces = selected;
+      }
+
+      // If no packages specified, show package selection prompt
+      if (!packages || packages.length === 0) {
+        const firstWorkspace = selectedWorkspaces[0];
+        const packageJson = JSON.parse(readFileSync(path.join(firstWorkspace, 'package.json'), 'utf8'));
+        const allDependencies = {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies
+        };
+
+        const choices = Object.keys(allDependencies).map(pkg => ({
+          name: `${pkg} (${allDependencies[pkg]})`,
+          value: pkg
+        }));
+
+        const { selectedPackages } = await inquirer.prompt([
+          {
+            type: 'checkbox',
+            name: 'selectedPackages',
+            message: 'Select packages to update:',
+            choices,
+            validate: (input: string[]) => input.length > 0 || 'You must select at least one package'
+          }
+        ]);
+
+        packages = selectedPackages;
+      }
+
+      // Update dependencies in each selected workspace
+      for (const workspace of selectedWorkspaces) {
+        let command: ResolvedCommand | null;
+        
+        if (options.latest) {
+          // Use specific command for latest updates based on package manager
+          switch (pm.name) {
+            case 'npm':
+              command = resolveCommand(pm.name, 'upgrade', [...packages, '--latest']);
+              break;
+            case 'pnpm':
+              command = resolveCommand(pm.name, 'upgrade', [...packages, '--latest']);
+              break;
+            case 'yarn':
+              command = resolveCommand(pm.name, 'upgrade', [...packages, '--latest']);
+              break;
+            default:
+              command = null;
+          }
+        } else {
+          command = resolveCommand(pm.name, 'upgrade', packages);
+        }
+
+        if (!command) {
+          throw new Error(`Could not resolve update command for ${pm.name}`);
+        }
+
+        console.log(chalk.blue(`\nUpdating dependencies in ${path.relative(process.cwd(), workspace)}...`));
+        const result = spawnSync(command.command, command.args, {
+          cwd: workspace,
+          stdio: 'inherit',
+          shell: true
+        });
+
+        if (result.error) {
+          throw result.error;
+        }
+
+        if (result.status !== 0) {
+          throw new Error(`Failed to update dependencies in ${workspace}`);
+        }
+      }
+
+      console.log(chalk.green('\nDependencies updated successfully!'));
     } catch (error) {
       console.error(chalk.red('\nError:'), error instanceof Error ? error.message : String(error));
       process.exit(1);

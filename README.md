@@ -76,6 +76,19 @@ Options:
 - `--clean`: Clean install (like npm ci)
 - `--frozen`: Use frozen lockfile
 
+### Updating Dependencies
+
+Update dependencies in workspaces:
+```bash
+npx kabob update [packages...] [options]
+```
+
+Options:
+- `-w, --workspace <workspace>`: Target specific workspace
+- `--latest`: Update to latest major versions (includes major version bumps)
+
+If no packages are specified, you will be prompted to select from existing dependencies.
+
 ### Managing Workspaces
 
 View workspace information:
@@ -124,6 +137,11 @@ npx kabob install --clean
 5. Remove a package from specific workspaces:
 ```bash
 npx kabob remove lodash --workspace ./packages/my-app
+```
+
+6. Update packages to their latest versions:
+```bash
+npx kabob update --latest
 ```
 
 ## Contributing
