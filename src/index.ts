@@ -179,7 +179,24 @@ async function addToWorkspaces(
         if (!match) {
           throw new Error(`Internal package not found: ${pkg}`);
         }
-        return match;
+        
+        // Find the matching package to get its version
+        const matchingPackage = internalPackages.find(p => p.name === match);
+        if (!matchingPackage) {
+          throw new Error(`Could not find package information for ${match}`);
+        }
+
+        // Format workspace reference based on package manager
+        switch (pm.name) {
+          case 'pnpm':
+            return `${match}@workspace:*`;  // pnpm workspace syntax
+          case 'yarn':
+            return `workspace:*`;  // Yarn workspace syntax
+          case 'npm':
+            return `file:${matchingPackage.path}`;  // npm file reference
+          default:
+            return match;
+        }
       });
     }
 
@@ -271,6 +288,8 @@ async function removeFromWorkspaces(
         if (!match) {
           throw new Error(`Internal package not found: ${pkg}`);
         }
+        
+        // For removal, we just need the package name
         return match;
       });
     }
