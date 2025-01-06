@@ -1,12 +1,16 @@
 {
   "name": "kabob",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A smart monorepo package manager installer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "kabob": "dist/index.js",
     "kabob-workspace": "dist/commands/workspace.js"
+  },
+  "repository": {
+  "type": "git",
+  "url": "https://github.com/salvinoto/kabob.git"
   },
   "scripts": {
     "build": "tsc",
