@@ -1,6 +1,6 @@
 {
   "name": "kabob",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A smart monorepo package manager installer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,8 +9,8 @@
     "kabob-workspace": "dist/commands/workspace.js"
   },
   "repository": {
-  "type": "git",
-  "url": "https://github.com/salvinoto/kabob.git"
+    "type": "git",
+    "url": "https://github.com/salvinoto/kabob.git"
   },
   "scripts": {
     "build": "tsc",
@@ -25,6 +25,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@turbo/gen": "^2.3.3",
     "chalk": "^5.3.0",
     "commander": "^11.1.0",
     "find-up": "^7.0.0",
@@ -38,5 +39,9 @@
     "@types/node": "^20.10.6",
     "typescript": "^5.3.3"
   },
+  "files": [
+    "dist",
+    "turbo"
+  ],
   "type": "module"
 }

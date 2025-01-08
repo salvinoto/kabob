@@ -17,6 +17,16 @@ import { addDependencies, removeDependencies } from './utils/package-json.js';
 import type { Workspace } from './types/index.js';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { createRequire } from 'module';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const require = createRequire(import.meta.url);
+
+// Import version from package.json
+const { version } = require('../package.json');
 
 interface InternalPackage {
   name: string;
@@ -329,7 +339,7 @@ async function removeFromWorkspaces(
 program
   .name('kabob')
   .description('A CLI tool for managing Turborepo workspaces')
-  .version('1.0.2-alpha.4');
+  .version(version);
 
 program.addCommand(workspaceCommand);
 program.addCommand(packageCommand);

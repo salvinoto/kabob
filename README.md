@@ -98,10 +98,32 @@ npx kabob workspace info
 
 ### Managing Packages
 
-View package information:
+Kabob provides several commands to manage packages in your monorepo:
+
 ```bash
-npx kabob package info
+# Add the package generator template to your project
+npx kabob package template
+
+# List all packages in your monorepo
+npx kabob package list
+
+# Delete a package from your monorepo
+npx kabob package delete <package-name>
 ```
+
+#### Creating New Packages
+
+1. First, add the package generator template to your project:
+```bash
+npx kabob package template
+```
+You'll be prompted to choose a package prefix (e.g., @repo, @workspace) that will be used in your package names.
+
+2. Then, create new packages using Turbo's generator:
+```bash
+npx turbo gen run
+```
+Follow the prompts to configure your new package.
 
 ## Package Manager Support
 
