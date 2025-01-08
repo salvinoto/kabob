@@ -8,6 +8,7 @@ export interface PackageDetails {
   devDependencies?: Record<string, string>;
   scripts?: Record<string, string>;
   workspaces?: string[] | { packages: string[] };
+  template?: string;
 }
 
 export interface ScopeAnswers {

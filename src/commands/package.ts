@@ -12,6 +12,7 @@ import { resolveCommand } from 'package-manager-detector/commands';
 import type { Command as PMCommand, DetectResult, ResolvedCommand } from 'package-manager-detector';
 import { glob } from 'glob';
 import type { PackageDetails, PackageType, Workspace } from '../types/index.js';
+import { getTemplate, listTemplates } from '../templates/package-templates.js';
 
 interface PackageAnswers extends PackageDetails {
   type: PackageType;
@@ -21,6 +22,7 @@ interface PackageAnswers extends PackageDetails {
   author?: string;
   private: boolean;
   features: string[];
+  template: string;
 }
 
 interface ScopeAnswers {
@@ -77,23 +79,36 @@ const promptPackageDetails = async (name = '', type: PackageType = 'package'): P
     initialScope = initialScope.replace('@', '');
   }
 
-  // First get the type
-  const { type: selectedType } = await inquirer.prompt([{
-    type: 'list',
-    name: 'type',
-    message: 'Package type:',
-    choices: [
-      { 
-        name: 'Package (shared library, component, or utility)',
-        value: 'package' as const
-      },
-      { 
-        name: 'App (web app, API, or service)',
-        value: 'app' as const
-      }
-    ],
-    default: type
-  }]);
+  // First get the type and template
+  const templates = listTemplates();
+  const { type: selectedType, template: selectedTemplate } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'type',
+      message: 'Package type:',
+      choices: [
+        { 
+          name: 'Package (shared library, component, or utility)',
+          value: 'package' as const
+        },
+        { 
+          name: 'App (web app, API, or service)',
+          value: 'app' as const
+        }
+      ],
+      default: type
+    },
+    {
+      type: 'list',
+      name: 'template',
+      message: 'Select a template:',
+      choices: templates.map(t => ({
+        name: t.name,
+        value: t.name.match(/\((.*?)\)/)?.[1] || '',
+        description: t.description
+      }))
+    }
+  ]);
 
   // Then get scope information
   const scopeAnswers: ScopeAnswers = (!name || !name.includes('@')) ? await inquirer.prompt([
@@ -189,7 +204,8 @@ const promptPackageDetails = async (name = '', type: PackageType = 'package'): P
     type: selectedType,
     useScope: scopeAnswers.useScope,
     scope: scopeAnswers.scope,
-    packageName: otherAnswers.packageName
+    packageName: otherAnswers.packageName,
+    template: selectedTemplate
   };
 
   return packageDetails;
@@ -251,6 +267,7 @@ const createPackage = async (name: string, type: PackageType = 'package'): Promi
   try {
     const details = await promptPackageDetails(name, type);
     const pm = await detectPackageManager();
+    const template = getTemplate(details.template);
 
     const addCommand = resolveCommand(pm.name, 'add', [details.name]);
     if (!addCommand) {
@@ -279,21 +296,14 @@ const createPackage = async (name: string, type: PackageType = 'package'): Promi
       private: details.private,
       main: 'dist/index.js',
       types: 'dist/index.d.ts',
-      scripts: {
-        build: 'tsc',
-        test: 'jest',
-        lint: 'eslint .',
-        clean: 'rm -rf dist'
+      ...template.packageJson,
+      dependencies: {
+        ...(template.dependencies || []).reduce((acc, dep) => ({ ...acc, [dep]: '*' }), {}),
+        ...details.dependencies
       },
-      dependencies: {},
       devDependencies: {
-        typescript: '^5.0.0',
-        '@types/node': '^18.0.0',
-        eslint: '^8.0.0',
-        jest: '^29.0.0',
-        '@types/jest': '^29.0.0',
-        '@typescript-eslint/eslint-plugin': '^6.0.0',
-        '@typescript-eslint/parser': '^6.0.0'
+        ...(template.devDependencies || []).reduce((acc, dep) => ({ ...acc, [dep]: '*' }), {}),
+        ...details.devDependencies
       }
     };
 
@@ -303,32 +313,19 @@ const createPackage = async (name: string, type: PackageType = 'package'): Promi
     );
 
     // Create tsconfig.json
-    const tsconfig = {
-      extends: '../../tsconfig.json',
-      compilerOptions: {
-        outDir: './dist',
-        rootDir: './src',
-        declaration: true,
-        sourceMap: true
-      },
-      include: ['src/**/*'],
-      exclude: ['node_modules', 'dist', '**/*.test.ts']
-    };
-
     fs.writeFileSync(
       path.join(packageDir, 'tsconfig.json'),
-      JSON.stringify(tsconfig, null, 2)
+      JSON.stringify(template.tsconfig, null, 2)
     );
 
-    // Create .eslintrc.js
-    const eslintrc = `module.exports = {
-  extends: ['../../.eslintrc.js'],
-  parserOptions: {
-    project: './tsconfig.json',
-  },
-};
-`;
-    fs.writeFileSync(path.join(packageDir, '.eslintrc.js'), eslintrc);
+    // Create template-specific files
+    if (template.files) {
+      for (const [filePath, content] of Object.entries(template.files)) {
+        const fullPath = path.join(packageDir, filePath);
+        fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+        fs.writeFileSync(fullPath, content.trim());
+      }
+    }
 
     // Create README.md
     const readme = `# ${details.name}
@@ -343,41 +340,17 @@ ${addCommand.command} ${addCommand.args.join(' ')}
 
 ## Usage
 
-\`\`\`typescript
-import { hello } from '${details.name}';
-
-hello();
-\`\`\`
+See source files for usage examples.
 `;
     fs.writeFileSync(path.join(packageDir, 'README.md'), readme);
 
-    // Create initial source files
-    const indexContent = `/**
- * ${details.description}
- * @packageDocumentation
- */
-
-export const hello = () => 'Hello from ${details.name}';
-`;
-    fs.writeFileSync(path.join(packageDir, 'src', 'index.ts'), indexContent);
-
-    // Create test file
-    const testContent = `import { hello } from './index';
-
-describe('${details.name}', () => {
-  it('should return hello message', () => {
-    expect(hello()).toBe('Hello from ${details.name}');
-  });
-});
-`;
-    fs.writeFileSync(path.join(packageDir, 'src', 'index.test.ts'), testContent);
-
-    console.log(chalk.green(`✓ Created ${type} at ${packageDir}`));
+    console.log(chalk.green(`✓ Created ${type} at ${packageDir} using ${template.name} template`));
     console.log(chalk.blue('\nNext steps:'));
     console.log(`  1. cd ${path.relative(process.cwd(), packageDir)}`);
     console.log(`  2. ${addCommand.command} ${addCommand.args.join(' ')}`);
-    console.log('  3. Write your code in src/index.ts');
-    console.log('  4. Run tests with npm test');
+    console.log('  3. Install dependencies');
+    console.log('  4. Write your code in src/');
+    console.log('  5. Run tests with npm test');
   } catch (error) {
     console.error(chalk.red('Error creating package:'), error instanceof Error ? error.message : String(error));
     process.exit(1);
