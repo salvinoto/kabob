@@ -20,6 +20,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { createRequire } from 'module';
+import { shadcnCommand } from './commands/shadcn.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -343,6 +344,7 @@ program
 
 program.addCommand(workspaceCommand);
 program.addCommand(packageCommand);
+program.addCommand(shadcnCommand);
 
 program
   .command('add [packages...]')

@@ -190,7 +190,8 @@ const listPackages = async (): Promise<void> => {
 };
 
 // Export functions
-export { packageCommand, deletePackage, listPackages };
+// Export functions
+export { packageCommand, deletePackage, listPackages, findInternalPackages };
 
 packageCommand
   .command('template')

@@ -1,6 +1,6 @@
 {
   "name": "kabob",
-  "version": "1.0.5",
+  "version": "1.0.6-beta.5",
   "description": "A smart monorepo package manager installer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/salvinoto/kabob.git"
+    "url": "git+https://github.com/salvinoto/kabob.git"
   },
   "scripts": {
     "build": "tsc",
