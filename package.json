@@ -1,6 +1,6 @@
 {
   "name": "kabob",
-  "version": "1.0.6-beta.5",
+  "version": "1.0.6-beta.6",
   "description": "A smart monorepo package manager installer",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

@@ -98,8 +98,11 @@ const transformImports = async (): Promise<void> => {
       
       // Transform imports
       content = content.replace(
-        /import\s*{([^}]+)}\s*from\s*['"](@?\/components\/ui\/[^'"]+)['"][^;\n]*;?/gm,
-        'import {$1} from "@workspace/ui/components/$2";'
+        /import\s*{([^}]+)}\s*from\s*['"](\@?\/components\/ui\/[^'"]+)['"][^;\n]*;?/gm,
+        (_, imports, path) => {
+          const componentName = path.split('/').pop();
+          return `import {${imports}} from "@workspace/ui/components/${componentName}";`;
+        }
       );
 
       // Only write if content has actually changed
